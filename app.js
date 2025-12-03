@@ -42,6 +42,26 @@ function initSupabase() {
         console.error('❌ Supabase initialization failed:', error);
         useSupabase = false;
     }
+    updateConnectionStatus();
+}
+
+function updateConnectionStatus() {
+    const statusEl = document.getElementById('connectionStatus');
+    const dotEl = statusEl.querySelector('.status-dot');
+    const textEl = statusEl.querySelector('.status-text');
+
+    if (useSupabase && currentUser) {
+        statusEl.className = 'connection-status status-online';
+        textEl.textContent = 'Online (Supabase)';
+        statusEl.title = `Conectado como ${currentUser.email}`;
+    } else if (currentUser) {
+        statusEl.className = 'connection-status status-offline';
+        textEl.textContent = 'Local (Offline)';
+        statusEl.title = 'Salvando apenas neste dispositivo';
+    } else {
+        statusEl.className = 'connection-status';
+        textEl.textContent = 'Desconectado';
+    }
 }
 
 
@@ -261,14 +281,18 @@ async function loadData() {
             if (error) throw error;
             influencers = data || [];
             console.log(`✅ Loaded ${influencers.length} from Supabase`);
+            updateConnectionStatus();
             return;
         } catch (error) {
             console.error('❌ Supabase load error:', error);
+            // Don't fallback silently if we expected Supabase to work
+            alert('Erro de conexão com o banco de dados. Verifique sua internet.');
         }
     }
     const stored = localStorage.getItem(STORAGE_KEY);
     influencers = stored ? JSON.parse(stored) : [];
     console.log(`📦 Loaded ${influencers.length} from localStorage`);
+    updateConnectionStatus();
 }
 
 async function saveData() {

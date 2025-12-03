@@ -44,6 +44,42 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+/* Connection Status */
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    font-size: 0.85rem;
+    margin-right: 10px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #6b7280;
+    /* Gray for checking */
+}
+
+.status-online .status-dot {
+    background-color: #10b981;
+    /* Green for Supabase */
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.status-offline .status-dot {
+    background-color: #f59e0b;
+    /* Orange for Local Storage */
+}
+
+.status-error .status-dot {
+    background-color: #ef4444;
+    /* Red for Error */
+}
+
 /* Login Screen */
 .login-screen {
     position: fixed;
