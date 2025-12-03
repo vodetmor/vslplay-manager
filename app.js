@@ -47,6 +47,8 @@ function initSupabase() {
 
 function updateConnectionStatus() {
     const statusEl = document.getElementById('connectionStatus');
+    if (!statusEl) return; // Safety check
+
     const dotEl = statusEl.querySelector('.status-dot');
     const textEl = statusEl.querySelector('.status-text');
 
