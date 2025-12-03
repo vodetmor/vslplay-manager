@@ -126,6 +126,8 @@ async function handleLogin(e) {
         if (trustDevice) {
             localStorage.setItem(AUTH_KEY, JSON.stringify({ email, trusted: true, timestamp: Date.now() }));
         }
+        currentUser = { id: 'local-user', email: email };
+        console.log('✅ Logged in locally:', email);
         document.getElementById('loginScreen').style.display = 'none';
         await initializeApp();
     } else {
@@ -1563,7 +1565,7 @@ function closeAddInfluencerModal() {
     document.getElementById('addInfluencerModal').classList.remove('active');
 }
 
-function confirmAddInfluencer() {
+async function confirmAddInfluencer() {
     const newInfluencer = { id: generateUUID() };
 
     columnSchema.forEach(col => {
@@ -1585,7 +1587,8 @@ function confirmAddInfluencer() {
     }
 
     influencers.push(newInfluencer);
-    saveData();
+    console.log('➕ Adding influencer:', newInfluencer.nome);
+    await saveData();
     renderTable();
     updateStats();
     closeAddInfluencerModal();
