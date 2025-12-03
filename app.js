@@ -419,7 +419,7 @@ function loadData() {
 function getDefaultData() {
     return [
         {
-            id: 1,
+            id: '550e8400-e29b-41d4-a716-446655440000', // Example UUID
             nome: "Cássio Hart",
             perfil_ig: "instagram.com/cassiohart",
             youtube: "https://www.youtube.com/@cassiohart/videos",
@@ -434,7 +434,7 @@ function getDefaultData() {
             converteu: "Não"
         },
         {
-            id: 2,
+            id: '550e8400-e29b-41d4-a716-446655440001',
             nome: "Anna Clara",
             perfil_ig: "https://www.instagram.com/annalimax",
             youtube: "https://www.youtube.com/@descomplicads",
@@ -449,7 +449,7 @@ function getDefaultData() {
             converteu: "Não"
         },
         {
-            id: 3,
+            id: '550e8400-e29b-41d4-a716-446655440002',
             nome: "Felipe Lona",
             perfil_ig: "",
             youtube: "https://www.youtube.com/@Lonamkt",
