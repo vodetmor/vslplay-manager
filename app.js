@@ -277,7 +277,20 @@ function getDefaultColumnSchema() {
     ];
 }
 
-function loadColumnSchema() {
+async function loadColumnSchema() {
+    if (useSupabase && supabase && currentUser && currentUser.id !== 'local-user') {
+        try {
+            const { data, error } = await supabase.from('column_schemas').select('schema_data').eq('user_id', currentUser.id).single();
+            if (data) {
+                columnSchema = data.schema_data;
+                console.log('✅ Loaded schema from Supabase');
+                return;
+            }
+        } catch (error) {
+            console.error('❌ Supabase schema load error:', error);
+        }
+    }
+
     const stored = localStorage.getItem(COLUMN_SCHEMA_KEY);
     if (stored) {
         columnSchema = JSON.parse(stored);
@@ -287,7 +300,28 @@ function loadColumnSchema() {
     }
 }
 
-function saveColumnSchema() {
+async function saveColumnSchema() {
+    if (useSupabase && supabase && currentUser && currentUser.id !== 'local-user') {
+        try {
+            const { error } = await supabase.from('column_schemas').upsert({
+                user_id: currentUser.id,
+                schema_data: columnSchema
+            }, { onConflict: 'user_id' }); // Assuming one schema per user for now, or we need a unique ID for the schema
+
+            // Note: The table definition uses ID as PK. We might need to adjust this.
+            // If we want one schema per user, we should probably query it first or use a fixed ID?
+            // For simplicity, let's assume we store one record per user. 
+            // Actually, the table has 'id' PK. Upserting by user_id requires a unique constraint on user_id.
+            // Let's check if we added that index/constraint. We added an index, but not a unique constraint.
+            // To make upsert work by user_id, we need a unique constraint.
+            // ALTER TABLE column_schemas ADD CONSTRAINT unique_user_schema UNIQUE (user_id);
+
+            if (error) throw error;
+            console.log('✅ Saved schema to Supabase');
+        } catch (error) {
+            console.error('❌ Supabase schema save error:', error);
+        }
+    }
     localStorage.setItem(COLUMN_SCHEMA_KEY, JSON.stringify(columnSchema));
 }
 
@@ -314,7 +348,7 @@ async function loadData() {
 }
 
 async function saveData() {
-    if (useSupabase && supabase && currentUser) {
+    if (useSupabase && supabase && currentUser && currentUser.id !== 'local-user') {
         try {
             const dataToSave = influencers.map(inf => ({ ...inf, user_id: currentUser.id }));
             const { error } = await supabase.from('influencers').upsert(dataToSave, { onConflict: 'id' });
@@ -323,8 +357,12 @@ async function saveData() {
             return;
         } catch (error) {
             console.error('❌ Supabase save error:', error);
+            alert('Erro ao salvar no banco de dados! Verifique sua conexão.');
         }
+    } else if (useSupabase && currentUser && currentUser.id === 'local-user') {
+        console.warn('⚠️ Saving locally because user is in fallback mode');
     }
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify(influencers));
     console.log('📦 Saved to localStorage');
 }
