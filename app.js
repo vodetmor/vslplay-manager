@@ -132,10 +132,18 @@ async function handleLogin(e) {
     if (useSupabase && supabase) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
+            console.error('❌ Supabase auth error:', error);
             alert('Erro: ' + error.message);
             return;
         }
         currentUser = data.user;
+        console.log('✅ Logged in via Supabase:', currentUser.email);
+
+        // Set local storage backup if trusted
+        if (trustDevice) {
+            localStorage.setItem(AUTH_KEY, JSON.stringify({ email, trusted: true, timestamp: Date.now() }));
+        }
+
         document.getElementById('loginScreen').style.display = 'none';
         await initializeApp();
         return;
