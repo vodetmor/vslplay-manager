@@ -19,6 +19,32 @@ const VALID_CREDENTIALS = {
     password: '#reidavsl1243#'
 };
 
+// Supabase Configuration
+const SUPABASE_URL = 'https://ridztjcycoxqjiuwarvx.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpZHp0amN5Y294cWppdXdhcnZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3MDU1NjIsImV4cCI6MjA4MDI4MTU2Mn0.p1QPJKfzCIn_ph7vITiuHSCLIqP79hyPXwtdJwYSftI';
+
+let supabase = null;
+let currentUser = null;
+let useSupabase = false;
+
+// Initialize Supabase client
+function initSupabase() {
+    try {
+        if (window.supabase) {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            useSupabase = true;
+            console.log('✅ Supabase initialized');
+        } else {
+            console.warn('⚠️ Supabase library not loaded, using localStorage');
+            useSupabase = false;
+        }
+    } catch (error) {
+        console.error('❌ Supabase initialization failed:', error);
+        useSupabase = false;
+    }
+}
+
+
 // Elementos do DOM
 const tableBody = document.getElementById('tableBody');
 const tableHeadRow = document.querySelector('#influencersTable thead tr');
@@ -76,34 +102,59 @@ function checkAuth() {
     return false;
 }
 
-function handleLogin(e) {
+async function handleLogin(e) {
     e.preventDefault();
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
     const trustDevice = document.getElementById('trustDevice').checked;
 
+    // Try Supabase auth first
+    if (useSupabase && supabase) {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            alert('Erro: ' + error.message);
+            return;
+        }
+        currentUser = data.user;
+        document.getElementById('loginScreen').style.display = 'none';
+        await initializeApp();
+        return;
+    }
+
+    // Fallback
     if (email === VALID_CREDENTIALS.email && password === VALID_CREDENTIALS.password) {
         if (trustDevice) {
-            localStorage.setItem(AUTH_KEY, JSON.stringify({
-                email,
-                trusted: true,
-                timestamp: Date.now()
-            }));
+            localStorage.setItem(AUTH_KEY, JSON.stringify({ email, trusted: true, timestamp: Date.now() }));
         }
         document.getElementById('loginScreen').style.display = 'none';
-        initializeApp();
+        await initializeApp();
     } else {
         alert('Credenciais inválidas!');
     }
 }
 
-function logout() {
+async function logout() {
+    if (useSupabase && supabase) await supabase.auth.signOut();
     localStorage.removeItem(AUTH_KEY);
     location.reload();
 }
 
 // Inicializar aplicação
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    initSupabase();
+
+    // Check Supabase auth first
+    if (useSupabase && supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            currentUser = session.user;
+            document.getElementById('loginScreen').style.display = 'none';
+            await initializeApp();
+            return;
+        }
+    }
+
+    // Fallback to local auth
     if (!checkAuth()) {
         const loginForm = document.getElementById('loginForm');
         if (loginForm) {
@@ -112,12 +163,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
     document.getElementById('loginScreen').style.display = 'none';
-    initializeApp();
+    await initializeApp();
 });
 
-function initializeApp() {
+async function initializeApp() {
     loadColumnSchema();
-    loadData();
+    await loadData();
     setupEventListeners();
     initCharts();
     renderTable();
@@ -199,6 +250,51 @@ function loadColumnSchema() {
 function saveColumnSchema() {
     localStorage.setItem(COLUMN_SCHEMA_KEY, JSON.stringify(columnSchema));
 }
+
+// Database Functions
+async function loadData() {
+    if (useSupabase && supabase && currentUser) {
+        try {
+            const { data, error } = await supabase.from('influencers').select('*').order('created_at', { ascending: false });
+            if (error) throw error;
+            influencers = data || [];
+            console.log(`✅ Loaded ${influencers.length} from Supabase`);
+            return;
+        } catch (error) {
+            console.error('❌ Supabase load error:', error);
+        }
+    }
+    const stored = localStorage.getItem(STORAGE_KEY);
+    influencers = stored ? JSON.parse(stored) : [];
+    console.log(`📦 Loaded ${influencers.length} from localStorage`);
+}
+
+async function saveData() {
+    if (useSupabase && supabase && currentUser) {
+        try {
+            const dataToSave = influencers.map(inf => ({ ...inf, user_id: currentUser.id }));
+            const { error } = await supabase.from('influencers').upsert(dataToSave, { onConflict: 'id' });
+            if (error) throw error;
+            console.log('✅ Saved to Supabase');
+            return;
+        } catch (error) {
+            console.error('❌ Supabase save error:', error);
+        }
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(influencers));
+    console.log('📦 Saved to localStorage');
+}
+
+async function deleteInfluencerFromDB(id) {
+    if (useSupabase && supabase) {
+        try {
+            await supabase.from('influencers').delete().eq('id', id);
+        } catch (error) {
+            console.error('❌ Delete error:', error);
+        }
+    }
+}
+
 
 // Configurar event listeners
 function setupEventListeners() {
