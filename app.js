@@ -12,6 +12,13 @@ let columnSchema = [];
 let carouselPosition = 0;
 let generateMode = 'chart'; // 'chart' or 'stat'
 
+// Authentication
+const AUTH_KEY = 'vslplay_auth';
+const VALID_CREDENTIALS = {
+    email: 'admin@reidavsl.com',
+    password: '#reidavsl1243#'
+};
+
 // Elementos do DOM
 const tableBody = document.getElementById('tableBody');
 const tableHeadRow = document.querySelector('#influencersTable thead tr');
@@ -53,8 +60,62 @@ const bulkFieldSelect = document.getElementById('bulkField'); // May be null
 const bulkValueInput = document.getElementById('bulkValueInput'); // May be null
 const bulkValueSelect = document.getElementById('bulkValueSelect'); // May be null
 
+// Authentication Functions
+function checkAuth() {
+    const auth = localStorage.getItem(AUTH_KEY);
+    if (auth) {
+        try {
+            const authData = JSON.parse(auth);
+            if (authData.trusted && authData.email === VALID_CREDENTIALS.email) {
+                return true;
+            }
+        } catch (e) {
+            return false;
+        }
+    }
+    return false;
+}
+
+function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const trustDevice = document.getElementById('trustDevice').checked;
+
+    if (email === VALID_CREDENTIALS.email && password === VALID_CREDENTIALS.password) {
+        if (trustDevice) {
+            localStorage.setItem(AUTH_KEY, JSON.stringify({
+                email,
+                trusted: true,
+                timestamp: Date.now()
+            }));
+        }
+        document.getElementById('loginScreen').style.display = 'none';
+        initializeApp();
+    } else {
+        alert('Credenciais inválidas!');
+    }
+}
+
+function logout() {
+    localStorage.removeItem(AUTH_KEY);
+    location.reload();
+}
+
 // Inicializar aplicação
 document.addEventListener('DOMContentLoaded', () => {
+    if (!checkAuth()) {
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', handleLogin);
+        }
+        return;
+    }
+    document.getElementById('loginScreen').style.display = 'none';
+    initializeApp();
+});
+
+function initializeApp() {
     loadColumnSchema();
     loadData();
     setupEventListeners();
@@ -62,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTable();
     updateStats();
     setupDragScroll();
-});
+}
 
 // DEFAULT COLUMN SCHEMA
 function getDefaultColumnSchema() {
@@ -1440,17 +1501,20 @@ function updateStats() {
     const contacted = influencers.filter(i => i.contato_ig === 'Sim').length;
     const returned = influencers.filter(i => i.teve_retorno === 'Sim').length;
     const converted = influencers.filter(i => i.converteu === 'Sim').length;
+    const highPriority = influencers.filter(i => i.relevancia === 'Alta').length;
 
     // Update Standard Stats
     const totalEl = document.getElementById('totalInfluencers') || document.getElementById('totalCount');
     const contactedEl = document.getElementById('totalContacted') || document.getElementById('contactedCount');
     const returnedEl = document.getElementById('totalReturned') || document.getElementById('returnedCount');
     const convertedEl = document.getElementById('totalConverted') || document.getElementById('convertedCount');
+    const highPriorityEl = document.getElementById('highPriorityCount');
 
     if (totalEl) totalEl.textContent = total;
     if (contactedEl) contactedEl.textContent = contacted;
     if (returnedEl) returnedEl.textContent = returned;
     if (convertedEl) convertedEl.textContent = converted;
+    if (highPriorityEl) highPriorityEl.textContent = highPriority;
 
     // Update Custom Stats
     document.querySelectorAll('.stat-item[data-stat-id]').forEach(item => {
