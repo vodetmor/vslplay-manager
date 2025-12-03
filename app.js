@@ -125,6 +125,48 @@ function initializeApp() {
     setupDragScroll();
 }
 
+// Number Normalization Functions
+function parseAbbreviatedNumber(value) {
+    if (typeof value === 'number') return value;
+    if (!value) return 0;
+
+    const str = String(value).toLowerCase().trim();
+
+    // Remove spaces and commas
+    const cleaned = str.replace(/[,\s]/g, '');
+
+    // Check for millions
+    if (cleaned.includes('m') || cleaned.includes('milhão') || cleaned.includes('milhões')) {
+        const num = parseFloat(cleaned.replace(/[^\d.]/g, ''));
+        return Math.round(num * 1000000);
+    }
+
+    // Check for thousands
+    if (cleaned.includes('k') || cleaned.includes('mil')) {
+        const num = parseFloat(cleaned.replace(/[^\d.]/g, ''));
+        return Math.round(num * 1000);
+    }
+
+    // Return as number
+    return parseFloat(cleaned) || 0;
+}
+
+function formatNumberAbbreviated(value) {
+    const num = parseFloat(value);
+    if (isNaN(num) || num === 0) return '0';
+
+    if (num >= 1000000) {
+        const formatted = (num / 1000000).toFixed(1);
+        return formatted.replace('.0', '') + 'M';
+    }
+    if (num >= 1000) {
+        const formatted = (num / 1000).toFixed(1);
+        return formatted.replace('.0', '') + 'k';
+    }
+    return num.toString();
+}
+
+
 // DEFAULT COLUMN SCHEMA
 function getDefaultColumnSchema() {
     return [
@@ -136,6 +178,7 @@ function getDefaultColumnSchema() {
         { id: 'email', label: 'Email', type: 'text' },
         { id: 'whatsapp', label: 'WhatsApp', type: 'text' },
         { id: 'nicho', label: 'Nicho', type: 'text' },
+        { id: 'media_views', label: 'Média de Visualizações (últimos 10)', type: 'number' },
         { id: 'relevancia', label: 'Relevância', type: 'select', options: ['Baixa', 'Média', 'Alta'] },
         { id: 'contato_ig', label: 'Contato IG', type: 'select', options: ['Sim', 'Não'] },
         { id: 'teve_retorno', label: 'Teve Retorno', type: 'select', options: ['Sim', 'Não'] },
@@ -971,7 +1014,13 @@ function renderTable(dataToRender = influencers) {
                         </td>
                     `;
                 } else {
-                    rowHTML += `<td><input type="${col.type === 'number' ? 'number' : 'text'}" class="inline-input" value="${value}" onchange="updateField('${influencer.id}', '${col.id}', this.value)"></td>`;
+                    // Handle number types with abbreviated display
+                    if (col.type === 'number') {
+                        const displayValue = value ? formatNumberAbbreviated(value) : '';
+                        rowHTML += `<td><input type="text" class="inline-input" value="${displayValue}" onchange="updateField('${influencer.id}', '${col.id}', this.value)"></td>`;
+                    } else {
+                        rowHTML += `<td><input type="${col.type === 'number' ? 'number' : 'text'}" class="inline-input" value="${value}" onchange="updateField('${influencer.id}', '${col.id}', this.value)"></td>`;
+                    }
                 }
             });
 
@@ -1014,7 +1063,12 @@ function renderTable(dataToRender = influencers) {
                         </td>
                     `;
                 } else {
-                    rowHTML += `<td>${value || '-'}</td>`;
+                    // Display numbers in abbreviated format
+                    if (col.type === 'number' && value) {
+                        rowHTML += `<td>${formatNumberAbbreviated(value)}</td>`;
+                    } else {
+                        rowHTML += `<td>${value || '-'}</td>`;
+                    }
                 }
             });
 
@@ -1051,8 +1105,17 @@ function updateTableHeader() {
 function updateField(id, field, value) {
     const index = influencers.findIndex(i => String(i.id) === String(id));
     if (index !== -1) {
-        influencers[index][field] = value;
+        const col = columnSchema.find(c => c.id === field);
+
+        // Normalize if number type
+        if (col && col.type === 'number') {
+            influencers[index][field] = parseAbbreviatedNumber(value);
+        } else {
+            influencers[index][field] = value;
+        }
+
         saveData();
+        renderTable(); // Re-render to show abbreviated format
         updateStats();
     }
 }
@@ -1095,13 +1158,13 @@ function formatUrl(url) {
 const chartTypes = ['bar', 'pie', 'line', 'doughnut'];
 let chartConfigs = {
     funnel: { typeIndex: 0, instance: null, ctxId: 'funnelChart', label: 'Funil de Conversão' },
-    niche: { typeIndex: 0, instance: null, ctxId: 'nicheChart', label: 'Distribuição por Nicho' },
-    priority: { typeIndex: 3, instance: null, ctxId: 'priorityChart', label: 'Relevância' }
+    averageViews: { typeIndex: 0, instance: null, ctxId: 'averageViewsChart', label: 'Média de Visualizações' },
+    priority: { typeIndex: 0, instance: null, ctxId: 'priorityChart', label: 'Média de Seguidores' }
 };
 
 function initCharts() {
     createChart('funnel');
-    createChart('niche');
+    createChart('averageViews');
     createChart('priority');
     initDynamicCharts();
     setupChartCarousel();
@@ -1226,25 +1289,31 @@ function updateCharts() {
         if (title) title.textContent = `Funil de Conversão (Taxa: ${conversionRate}%)`;
     }
 
-    if (chartConfigs.niche.instance) {
-        const niches = {};
-        influencers.forEach(i => {
-            const niche = i.nicho || 'SEM NICHO';
-            niches[niche] = (niches[niche] || 0) + 1;
-        });
+    if (chartConfigs.averageViews.instance) {
+        const views = influencers.map(i => parseAbbreviatedNumber(i.media_views || 0));
+        const totalViews = views.reduce((a, b) => a + b, 0);
+        const avgViews = views.length > 0 ? totalViews / views.length : 0;
+        const maxViews = Math.max(...views, 0);
 
-        chartConfigs.niche.instance.data.labels = Object.keys(niches);
-        chartConfigs.niche.instance.data.datasets[0].data = Object.values(niches);
-        chartConfigs.niche.instance.update();
+        chartConfigs.averageViews.instance.data.labels = ['Média', 'Máxima'];
+        chartConfigs.averageViews.instance.data.datasets[0].data = [avgViews, maxViews];
+        chartConfigs.averageViews.instance.update();
     }
 
     if (chartConfigs.priority.instance) {
-        const high = influencers.filter(i => i.relevancia === 'Alta').length;
-        const medium = influencers.filter(i => i.relevancia === 'Média').length;
-        const low = influencers.filter(i => i.relevancia === 'Baixa').length;
+        // Calculate average followers (assuming there's a seguidores field)
+        // If not, we'll use a placeholder or create one
+        const followersData = influencers.map(i => {
+            // Try to get followers from various possible fields
+            return parseAbbreviatedNumber(i.seguidores || i.followers || i.media_views || 0);
+        });
 
-        chartConfigs.priority.instance.data.labels = ['Alta', 'Média', 'Baixa'];
-        chartConfigs.priority.instance.data.datasets[0].data = [high, medium, low];
+        const totalFollowers = followersData.reduce((a, b) => a + b, 0);
+        const avgFollowers = followersData.length > 0 ? totalFollowers / followersData.length : 0;
+        const maxFollowers = Math.max(...followersData, 0);
+
+        chartConfigs.priority.instance.data.labels = ['Média', 'Máxima'];
+        chartConfigs.priority.instance.data.datasets[0].data = [avgFollowers, maxFollowers];
         chartConfigs.priority.instance.update();
     }
 
@@ -1399,12 +1468,18 @@ function closeAddInfluencerModal() {
 }
 
 function confirmAddInfluencer() {
-    const newId = Math.max(...influencers.map(i => i.id), 0) + 1;
-    const newInfluencer = { id: newId };
+    const newInfluencer = { id: generateUUID() };
 
     columnSchema.forEach(col => {
         const input = document.getElementById(`add_${col.id}`);
-        newInfluencer[col.id] = input.value || (col.type === 'number' ? 0 : '');
+        let value = input.value || (col.type === 'number' ? 0 : '');
+
+        // Normalize number inputs
+        if (col.type === 'number' && value) {
+            value = parseAbbreviatedNumber(value);
+        }
+
+        newInfluencer[col.id] = value;
     });
 
     // Validate that at least name is filled
@@ -1418,6 +1493,14 @@ function confirmAddInfluencer() {
     renderTable();
     updateStats();
     closeAddInfluencerModal();
+}
+
+// Generate UUID helper (if not already defined)
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
 }
 
 // Bulk Actions
@@ -1661,6 +1744,12 @@ function handleImport() {
                     if (headerIndex !== -1 && values[headerIndex]) {
                         // Remove multiple levels of surrounding quotes and trim
                         value = values[headerIndex].replace(/^["']+|["']+$/g, '').trim();
+
+                        // NORMALIZE NUMBERS
+                        if (col.type === 'number') {
+                            value = parseAbbreviatedNumber(value);
+                        }
+
                         hasData = true;
                     }
 
