@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VSLPlay - Influencers Manager</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🎬 VSLPlay Influencers Manager</h1>
+                <p class="subtitle">Mapeie, qualifique e priorize influenciadores para embaixadores</p>
+            </div>
+        </header>
+
+        <!-- Dashboard -->
+        <div class="dashboard-header"
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 style="font-size: 1.25rem; font-weight: 700;">Dashboard</h2>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-sm btn-primary" id="generateStatBtn">🔢 Gerar Dado</button>
+                <button class="btn btn-sm btn-primary" id="generateChartBtn">📊 Gerar Gráfico</button>
+                <button class="btn btn-sm btn-secondary" id="toggleChartsBtn">📉 Ocultar Dados</button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-item">
+                <span class="stat-label">Total:</span>
+                <span class="stat-value" id="totalCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Contactados:</span>
+                <span class="stat-value" id="contactedCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Retornaram:</span>
+                <span class="stat-value" id="returnedCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Convertidos:</span>
+                <span class="stat-value" id="convertedCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Relevância Alta:</span>
+                <span class="stat-value" id="highPriorityCount">0</span>
+            </div>
+        </div>
+
+        <div class="dashboard-container" id="dashboardContainer">
+            <div class="chart-card" data-chart-id="funnel">
+                <div class="chart-header">
+                    <button class="chart-nav prev" onclick="switchChartType('funnel', -1)">❮</button>
+                    <h3 id="funnelTitle">Funil de Conversão</h3>
+                    <button class="chart-nav next" onclick="switchChartType('funnel', 1)">❯</button>
+                    <button class="icon-btn delete" onclick="deleteChart('funnel')"
+                        style="margin-left: auto; color: #ef4444;" title="Excluir gráfico">🗑️</button>
+                </div>
+                <canvas id="funnelChart"></canvas>
+            </div>
+            <div class="chart-card" data-chart-id="niche">
+                <div class="chart-header">
+                    <button class="chart-nav prev" onclick="switchChartType('niche', -1)">❮</button>
+                    <h3>Distribuição por Nicho</h3>
+                    <button class="chart-nav next" onclick="switchChartType('niche', 1)">❯</button>
+                    <button class="icon-btn delete" onclick="deleteChart('niche')"
+                        style="margin-left: auto; color: #ef4444;" title="Excluir gráfico">🗑️</button>
+                </div>
+                <canvas id="nicheChart"></canvas>
+            </div>
+            <div class="chart-card" data-chart-id="priority">
+                <div class="chart-header">
+                    <button class="chart-nav prev" onclick="switchChartType('priority', -1)">❮</button>
+                    <h3>Relevância</h3>
+                    <button class="chart-nav next" onclick="switchChartType('priority', 1)">❯</button>
+                    <button class="icon-btn delete" onclick="deleteChart('priority')"
+                        style="margin-left: auto; color: #ef4444;" title="Excluir gráfico">🗑️</button>
+                </div>
+                <canvas id="priorityChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Unified Toolbar Above Table -->
+        <div class="table-controls"
+            style="display: flex; justify-content: space-between; align-items: center; margin: 2rem 0 1rem 0; padding: 0 0.5rem; flex-wrap: wrap; gap: 0.75rem;">
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button class="btn btn-secondary" id="importBtn">Importar CSV</button>
+                <button class="btn btn-secondary" id="exportBtn">Exportar Excel</button>
+                <button class="btn btn-primary" id="addInfluencerBtn">
+                    <span class="plus-icon" style="color: white; font-weight: bold;">+</span> Adicionar Influenciador
+                </button>
+                <button class="btn btn-secondary" id="toggleEditModeBtn">✏️ Editar</button>
+                <button class="btn btn-warning" id="cancelEditBtn" style="display: none;">❌ Cancelar Edição</button>
+                <button class="btn btn-secondary" id="manageColumnsBtn" style="display: none;">⚙️ Gerenciar
+                    Colunas</button>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <div class="button-group" id="bulkActionsGroup" style="display: none;">
+                    <button class="btn btn-danger" id="bulkDeleteBtn">🗑️ Excluir Selecionados</button>
+                </div>
+                <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar influenciador...">
+            </div>
+        </div>
+
+        <!-- Tabela de Influenciadores -->
+        <div class="table-wrapper">
+            <table class="influencers-table" id="influencersTable">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="selectAll"></th>
+                        <th>Nome</th>
+                        <th>Instagram</th>
+                        <th>YouTube</th>
+                        <th>TikTok</th>
+                        <th>Site</th>
+                        <th>Email</th>
+                        <th>WhatsApp</th>
+                        <th>Nicho</th>
+                        <th>Relevância</th>
+                        <th>Contato</th>
+                        <th>Teve Retorno</th>
+                        <th>Converteu</th>
+                        <!-- Actions column header removed, will be added dynamically -->
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Dados serão inseridos aqui via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Modal removido para edição inline -->
+
+        <!-- Modal para Importar CSV -->
+        <div id="importModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Importar Influenciadores</h2>
+                    <button class="close-btn" id="closeImportBtn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>Selecione um arquivo CSV ou Excel com os seguintes campos:</p>
+                    <code>Nome, Perfil IG, YouTube, Perfil TikTok, Site, Email, WhatsApp, Nicho, Relevância</code>
+                    <button type="button" class="btn btn-secondary btn-sm" id="downloadModelBtn"
+                        style="margin-bottom: 15px;">📥 Baixar Modelo CSV</button>
+                    <input type="file" id="csvFile" accept=".csv,.xlsx,.xls" style="display: block; margin-top: 10px;">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelImportBtn">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmImportBtn">Importar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>VSLPlay © 2024 - Plataforma de Hospedagem de VSL de Baixo Custo</p>
+        </footer>
+    </div>
+
+    <!-- Add Influencer Modal -->
+    <div id="addInfluencerModal" class="modal">
+        <div class="modal-content" style="max-width: 600px; max-height: 85vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="flex-shrink: 0;">
+                <h2>+ Adicionar Influenciador</h2>
+                <button class="close-btn" id="closeAddInfluencerBtn">×</button>
+            </div>
+            <div class="modal-body" style="flex: 1; overflow-y: auto;">
+                <form id="addInfluencerForm">
+                    <div id="addInfluencerFields">
+                        <!-- Fields will be dynamically generated based on column schema -->
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="flex-shrink: 0; border-top: 1px solid #e5e7eb; padding-top: 1rem;">
+                <button type="button" class="btn btn-secondary" id="cancelAddInfluencerBtn">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="confirmAddInfluencerBtn">Adicionar</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Column Management Modal -->
+    <div id="columnManagementModal" class="modal">
+        <div class="modal-content" style="max-width: 650px; max-height: 85vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="flex-shrink: 0;">
+                <h2>⚙️ Gerenciar Colunas</h2>
+                <button class="close-btn" id="closeColumnManagementBtn">×</button>
+            </div>
+            <div class="modal-body" style="flex: 1; overflow-y: auto; max-height: calc(85vh - 200px);">
+                <h3 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: #6b7280;">Colunas Existentes</h3>
+                <div id="columnsList" style="margin-bottom: 1.5rem;">
+                    <!-- Columns will be rendered here dynamically -->
+                </div>
+                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #e5e7eb;">
+                <h3 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: #6b7280;">Adicionar Nova Coluna</h3>
+                <div class="form-group">
+                    <label for="newColumnName">Nome da Coluna:</label>
+                    <input type="text" id="newColumnName" class="inline-input" placeholder="Ex: Telefone">
+                </div>
+                <div class="form-group">
+                    <label for="newColumnType">Tipo:</label>
+                    <select id="newColumnType" class="inline-input">
+                        <option value="text">Texto</option>
+                        <option value="number">Número</option>
+                        <option value="url">URL</option>
+                        <option value="select">Seleção (Sim/Não)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer" style="flex-shrink: 0; border-top: 1px solid #e5e7eb; padding-top: 1rem;">
+                <button type="button" class="btn btn-secondary" id="cancelColumnManagementBtn">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="addColumnBtn">+ Adicionar Coluna</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmationModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <div class="modal-body">
+                <h3 style="margin-bottom: 1rem; color: var(--text-primary);">Tem certeza?</h3>
+                <p id="confirmationMessage">Você deseja realmente excluir este item?</p>
+            </div>
+            <div class="modal-footer" style="justify-content: center;">
+                <button type="button" class="btn btn-secondary" id="cancelConfirmBtn">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmActionBtn">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Column Modal -->
+    <div id="renameColumnModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2>✏️ Renomear Coluna</h2>
+                <button class="close-btn" id="closeRenameColumnBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="renameColumnInput">Novo nome:</label>
+                    <input type="text" id="renameColumnInput" class="inline-input" placeholder="Digite o novo nome">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancelRenameColumnBtn">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="confirmRenameColumnBtn">Renomear</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generate Chart Modal -->
+    <div id="generateChartModal" class="modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <div class="modal-header">
+                <h2>📊 Gerar Novo Gráfico</h2>
+                <button class="close-btn" id="closeGenerateChartBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Tipo de Gráfico:</label>
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                        <button type="button" class="btn btn-secondary" id="customChartTabBtn"
+                            style="flex: 1;">Personalizado</button>
+                        <button type="button" class="btn btn-secondary" id="predefinedChartTabBtn"
+                            style="flex: 1;">Pré-definido</button>
+                    </div>
+                </div>
+
+                <!-- Custom Chart/Stat Section -->
+                <div id="customChartSection">
+                    <div class="form-group">
+                        <label for="chartNameInput" id="nameInputLabel">Nome do Gráfico:</label>
+                        <input type="text" id="chartNameInput" class="inline-input" placeholder="Ex: Status de Contato">
+                    </div>
+                    <div class="form-group">
+                        <label for="chartColumnSelect">Coluna de Dados:</label>
+                        <select id="chartColumnSelect" class="inline-input">
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="chartTypeSelect">Tipo de Análise:</label>
+                        <select id="chartTypeSelect" class="inline-input">
+                            <option value="count">Contagem (contar ocorrências)</option>
+                            <option value="sum">Soma (somar valores numéricos)</option>
+                            <option value="average">Média (calcular média)</option>
+                        </select>
+                    </div>
+                    <!-- Specific for Stats -->
+                    <div class="form-group" id="statValueGroup" style="display: none;">
+                        <label for="statTargetValue">Valor Alvo (para contagem):</label>
+                        <select id="statTargetValue" class="inline-input">
+                            <!-- Options populated for select columns -->
+                        </select>
+                        <small style="color: #6b7280; display: block; margin-top: 0.25rem;">Selecione qual valor você
+                            quer contar (ex: "Sim")</small>
+                    </div>
+                </div>
+
+                <!-- Predefined Chart Section -->
+                <div id="predefinedChartSection" style="display: none;">
+                    <p style="margin-bottom: 1rem; color: #6b7280;">Selecione um gráfico pré-definido para adicionar:
+                    </p>
+                    <div class="form-group">
+                        <label for="predefinedChartSelect">Gráfico:</label>
+                        <select id="predefinedChartSelect" class="inline-input">
+                            <option value="funnel">Funil de Conversão</option>
+                            <option value="priority">Relevância</option>
+                            <option value="niche">Distribuição por Nicho</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancelGenerateChartBtn">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="confirmGenerateChartBtn">Criar Gráfico</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
