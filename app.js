@@ -170,7 +170,14 @@ async function logout() {
 }
 
 // Inicializar aplicação
+// Inicializar aplicação
 document.addEventListener('DOMContentLoaded', async () => {
+    // Attach login listener IMMEDIATELY to prevent race conditions
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', handleLogin);
+    }
+
     initSupabase();
 
     // Check Supabase auth first
@@ -185,15 +192,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Fallback to local auth
-    if (!checkAuth()) {
-        const loginForm = document.getElementById('loginForm');
-        if (loginForm) {
-            loginForm.addEventListener('submit', handleLogin);
-        }
+    if (checkAuth()) {
+        document.getElementById('loginScreen').style.display = 'none';
+        await initializeApp();
         return;
     }
-    document.getElementById('loginScreen').style.display = 'none';
-    await initializeApp();
+
+    // If we get here, we are not logged in, and the login form is already ready.
 });
 
 async function initializeApp() {
