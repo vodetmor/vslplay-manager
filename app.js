@@ -189,6 +189,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function initializeApp() {
+    console.log('🚀 Initializing app...');
+    updateConnectionStatus();
     loadColumnSchema();
     await loadData();
     setupEventListeners();
@@ -196,6 +198,7 @@ async function initializeApp() {
     renderTable();
     updateStats();
     setupDragScroll();
+    console.log('✅ App initialized');
 }
 
 // Number Normalization Functions
