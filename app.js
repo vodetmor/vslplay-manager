@@ -1646,10 +1646,18 @@ function updateBulkActionsUI() {
     }
 }
 
-function deleteSelected() {
+async function deleteSelected() {
+    const idsToDelete = Array.from(selectedIds);
+    console.log('🗑️ Deleting influencers:', idsToDelete.length);
+
+    // Delete from database
+    for (const id of idsToDelete) {
+        await deleteInfluencerFromDB(id);
+    }
+
     influencers = influencers.filter(i => !selectedIds.has(String(i.id)));
     selectedIds.clear();
-    saveData();
+    await saveData();
     renderTable();
     updateStats();
     updateBulkActionsUI();
